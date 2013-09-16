@@ -1,0 +1,203 @@
+<div class="grid">
+	<div class="grid6">
+		<h1>Customers</h1>
+		<table border="1">
+			<thead>
+				<tr>
+					<th>Customer</th>
+					<th>HQ State</th>
+					<th>E-Mail</th>
+					<th><i>Actions</i></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+					foreach($customers->results as $i => $customer){
+						echo "<tr>".
+							"<td>".
+								'<a href="#" class="loadBizStates" title="Load states cusomer doing business in">'.
+									$customer['name'].
+								'</a>'.
+								'<span class="edit" data-name="name" style="display:none">'.$customer['name']."</span>".
+								'<input type="hidden" name="customers_id" value="'.$customer['id'].'">'.
+							"</td>".
+							"<td>".
+								'<span class="edit" data-name="states_id">'.$customer['state']."</span>".
+							"</td>".
+							"<td>".
+								'<span class="edit" data-name="email">'.$customer['email']."</span>".
+							"</td>".
+							"<td>".
+								'<input type="button" class="editrow" value="EDIT" />'.
+								'<input type="button" class="deleterow" value="DELETE" />'.
+							"</td>".
+						"</tr>\n";
+					}
+				?>
+			</tbody>
+		</table>
+	</div>
+	<div class="grid6">
+		<div id="bizstates">
+			<h2>Customer doing business in states</h2>
+			<form action="<?php echo WEBROOT; ?>bizstates/save" method="POST">
+				<fieldset>
+					select a customer
+				</fieldset>
+				<input type="submit" value="Save all changes" />
+				<img class="saveLoader" src="img/ajax-loader.gif" alt="Loading data..." title="Loading data..." style="display:none" />
+			</form>
+		</div>
+	</div>
+</div>
+<div class="clear">&nbsp;</div>
+<div class="grid">
+	<div class="grid12">
+		<h2>Add customer</h2>
+		<form id="addCustomer" action="<?php echo WEBROOT; ?>customers/add" method="POST">
+			<fieldset>
+				<div>
+					<label>Customer-Name</label>
+					<input type="text" name="name" value="" />
+				</div>
+				<div>
+					<label>HQ State</label>
+					<select id="hqstate" name="states_id">
+						<option value="">- please select -</option>
+					</select>
+				</div>
+				<div>
+					<label>E-Mail</label>
+					<input type="text" name="email" value="" />
+				</div>
+			</fieldset>
+			<input type="submit" value="Add customer" />
+			<img class="saveLoader" src="img/ajax-loader.gif" alt="Loading data..." title="Loading data..." style="display:none" />
+		</form>
+	</div>
+</div>
+<script type="text/javascript">
+	var states = <?php echo json_encode($statesJson); ?>;
+	var hqstateOptions = '';
+	function loadBizStates(customerId){
+		$('#bizstates').show().find('fieldset').html('<img src="img/ajax-loader.gif" alt="Loading data..." title="Loading data..." />');
+		$.ajax({
+			type:'POST',cache:false,
+			url:'<?php echo WEBROOT; ?>bizstates/load',
+			data:'customers_id='+customerId,
+			dataType:'json',
+			success:function(data){
+				var fHtml = '<input name="customers_id" type="hidden" value="'+data['customers_id']+'">';
+				$.each(states,function(id,name){
+					fHtml += '<input name="states['+id+']" type="checkbox" value="1" '+
+						(data['states'][id]!=undefined ? 'checked="checked"':'')+'>'+name+'<br>';
+				});
+				$('#bizstates fieldset').html(fHtml);
+			},
+			error:function(){
+				alert('Data couldnt be loaded.');
+			}
+		});
+	}
+	$(function() {
+
+		$.each(states,function(states_id,state){
+			hqstateOptions += '<option value="'+states_id+'">'+state+'</option>';
+		});
+		$('#hqstate').append(hqstateOptions);
+
+		$('.deleterow').click(function(){
+			var customers_id = $(this).parents('tr:first').find('input[name="customers_id"]').val();
+			$.ajax({
+				type:'POST',cache:false,
+				url:'<?php echo WEBROOT; ?>customers/delete',
+				data:'customers_id='+customers_id,
+				dataType:'json',
+				success:function(data){
+					alert('Customer was successfully deleted ;)');
+					$(location).attr('href','<?php echo WEBROOT; ?>');
+				},
+				error:function(){
+					alert('ERROR: Data couldnt be saved!');
+				}
+			});
+		});
+		$('.editrow').click(function(){
+			if($(this).val()=='EDIT'){
+				$(this).val('SAVE');
+				var tr = $(this).parents('tr:first');
+				$.each($('.edit',tr),function(index,value){
+					var name = $(this).attr('data-name');
+					if(name=='name')
+						$(this).parents('td:first').find('a').hide();
+					if(name=='states_id'){
+						$(this).replaceWith('<select class="editC" name="'+name+'">'+hqstateOptions+'</select>').val();
+					}
+					else
+						$(this).replaceWith('<input class="editC" name="'+name+'" value="'+$(this).html()+'" />');
+				});
+			}
+			else {
+				//save
+				var sData = $(this).parents('tr:first').find(':input').serialize();
+				$.ajax({
+					type:'POST',cache:false,
+					url:'<?php echo WEBROOT; ?>customers/edit',
+					data:sData,
+					dataType:'json',
+					success:function(data){
+						alert('Customer was successfully updated ;)');
+						$(location).attr('href','<?php echo WEBROOT; ?>');
+					},
+					error:function(){
+						alert('ERROR: Data couldnt be saved!');
+					}
+				});
+			}
+		});
+
+		$('.loadBizStates').click(function(){
+			loadBizStates($(this).parents('td:first').find('input[name="customers_id"]').val());
+			return false;
+		});
+		$('#bizstates form').submit(function(){
+			$(this).find('.saveLoader').show();
+			var sData = $(this).find(':input').serialize();
+			$.ajax({
+				type:'POST',cache:false,
+				url:'<?php echo WEBROOT; ?>bizstates/save',
+				data:sData,
+				dataType:'json',
+				success:function(data){
+					$('#bizstates .saveLoader').hide();
+					alert('Data was successfully saved ;)');
+				},
+				error:function(){
+					$('#bizstates .saveLoader').hide();
+					alert('ERROR: Data couldnt be saved!');
+				}
+			});
+			return false;
+		});
+		$('#addCustomer').submit(function(){
+			$(this).find('.saveLoader').show();
+			var sData = $(this).find(':input').serialize();
+			$.ajax({
+				type:'POST',cache:false,
+				url:'<?php echo WEBROOT; ?>customers/add',
+				data:sData,
+				dataType:'json',
+				success:function(data){
+					$('#addCustomer .saveLoader').hide();
+					alert('Customer was successfully added ;)');
+					$(location).attr('href','<?php echo WEBROOT; ?>');
+				},
+				error:function(){
+					$('#addCustomer .saveLoader').hide();
+					alert('ERROR: Data couldnt be saved!');
+				}
+			});
+			return false;
+		});
+	});
+</script>
